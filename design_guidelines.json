@@ -1,0 +1,153 @@
+{
+  "brand_identity": {
+    "name": "MindEase",
+    "essence": "Digital Sanctuary",
+    "core_values": ["Calm", "Privacy", "Growth", "Connection"],
+    "emotional_tone": "Therapeutic, Safe, Gentle, Encouraging"
+  },
+  "typography": {
+    "primary_font": "Outfit",
+    "secondary_font": "Playfair Display",
+    "mono_font": "JetBrains Mono",
+    "usage": {
+      "headings": "Outfit, font-weight: 600, tracking-tight",
+      "body": "Outfit, font-weight: 400, leading-relaxed",
+      "quotes": "Playfair Display, font-style: italic, font-weight: 500",
+      "data_labels": "JetBrains Mono, text-xs, tracking-widest, uppercase"
+    }
+  },
+  "colors": {
+    "themes": {
+      "calm": {
+        "name": "Serenity (Default)",
+        "background": "#F4F7F5",
+        "foreground": "#2D3748",
+        "card": "#FFFFFF",
+        "card_foreground": "#2D3748",
+        "primary": "#4A7C59",
+        "primary_foreground": "#FFFFFF",
+        "secondary": "#E2E8F0",
+        "secondary_foreground": "#1A202C",
+        "accent": "#C6F6D5",
+        "accent_foreground": "#22543D",
+        "border": "#E2E8F0",
+        "ring": "#4A7C59"
+      },
+      "dark": {
+        "name": "Deep Sleep",
+        "background": "#0F172A",
+        "foreground": "#F8FAFC",
+        "card": "#1E293B",
+        "card_foreground": "#F8FAFC",
+        "primary": "#818CF8",
+        "primary_foreground": "#FFFFFF",
+        "secondary": "#334155",
+        "secondary_foreground": "#F8FAFC",
+        "accent": "#1E293B",
+        "accent_foreground": "#818CF8",
+        "border": "#334155",
+        "ring": "#818CF8"
+      },
+      "vibrant": {
+        "name": "Energy Flow",
+        "background": "#FFF7ED",
+        "foreground": "#431407",
+        "card": "#FFFFFF",
+        "card_foreground": "#431407",
+        "primary": "#F97316",
+        "primary_foreground": "#FFFFFF",
+        "secondary": "#FFEDD5",
+        "secondary_foreground": "#9A3412",
+        "accent": "#FDBA74",
+        "accent_foreground": "#7C2D12",
+        "border": "#FED7AA",
+        "ring": "#F97316"
+      }
+    },
+    "utility": {
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#3B82F6"
+    }
+  },
+  "layout_strategies": {
+    "dashboard_grid": {
+      "type": "Bento Grid (Mode B)",
+      "classes": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 p-6",
+      "items": {
+        "summary_card": "col-span-1 h-full",
+        "main_chart": "col-span-2 row-span-2 h-full",
+        "feed_list": "col-span-1 row-span-2 h-full"
+      }
+    },
+    "learning_reels": {
+      "type": "Mobile-First Card Stack",
+      "container": "flex flex-col items-center gap-8 py-8 h-[calc(100vh-4rem)] overflow-y-scroll snap-y snap-mandatory",
+      "card": "w-full max-w-md h-[80vh] snap-center shrink-0 rounded-3xl shadow-xl overflow-hidden relative"
+    },
+    "community_feed": {
+      "type": "Masonry / Staggered",
+      "classes": "columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6 p-6"
+    }
+  },
+  "components": {
+    "buttons": {
+      "default": "rounded-full px-6 py-2 font-medium transition-all hover:scale-105 active:scale-95",
+      "primary": "bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:bg-primary/90",
+      "ghost": "hover:bg-accent hover:text-accent-foreground"
+    },
+    "cards": {
+      "base": "rounded-2xl border bg-card text-card-foreground shadow-sm",
+      "hover_effect": "transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/20"
+    },
+    "inputs": {
+      "base": "rounded-xl border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "bg-white/70 dark:bg-black/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm",
+    "gradients": {
+      "calm_overlay": "bg-gradient-to-b from-transparent to-background/80",
+      "vibrant_glow": "bg-gradient-to-tr from-primary/20 via-accent/20 to-transparent"
+    },
+    "animations": {
+      "fade_in": "animate-in fade-in duration-500",
+      "slide_up": "animate-in slide-in-from-bottom-4 duration-500",
+      "pulse_slow": "animate-pulse duration-[3000ms]"
+    }
+  },
+  "image_assets": {
+    "hero_section": {
+      "url": "https://images.unsplash.com/photo-1758274526671-ad18176acb01?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHxjYWxtJTIwbWVkaXRhdGlvbiUyMG5hdHVyZSUyMHdlbGxuZXNzfGVufDB8fHx8MTc2NDQwNzUwMXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Woman meditating in nature, embodying calm",
+      "usage": "Landing page hero background or main visual"
+    },
+    "community_section": {
+      "url": "https://images.unsplash.com/photo-1655720359248-eeace8c709c5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzB8MHwxfHNlYXJjaHwyfHxkaXZlcnNlJTIwZ3JvdXAlMjBzdXBwb3J0JTIwY29tbXVuaXR5JTIwaGFwcHl8ZW58MHx8fHwxNzY0NDA3NTAzfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Hands holding together, symbolizing support",
+      "usage": "Community/Hope Notes section header"
+    },
+    "learning_section": {
+      "url": "https://images.unsplash.com/photo-1756759327800-2da04ec2545c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGZsb3clMjBmb2N1cyUyMGxlYXJuaW5nJTIwZ3Jvd3RofGVufDB8fHx8MTc2NDQwNzUwNHww&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract swirling metallic flow",
+      "usage": "Background for learning module or abstract visual for focus"
+    }
+  },
+  "instructions_to_main_agent": [
+    "IMPLEMENT THEME SWITCHER: Create a 'ThemeContext' that manages 'calm', 'dark', and 'vibrant' classes on the <html> or <body> tag. Update tailwind.config.js to handle these classes if necessary, or use CSS variables in index.css mapped to these classes.",
+    "USE SHADCN FOR INTERACTIVITY: Use Shadcn components for all complex interactions (Dialogs, Dropdowns, Forms). Customize their styling via Tailwind classes to match the 'rounded-2xl' and 'glassmorphism' aesthetic.",
+    "REELS INTERFACE: For the Learning Module, build a custom component that mimics TikTok/Reels. It must snap to center, have a 9:16 aspect ratio container, and use the 'learning_section' image as a placeholder background for video content.",
+    "DASHBOARD LAYOUT: Strictly follow the 'Bento Grid' layout for the dashboard. Do not just stack cards. Use col-span and row-span to create visual interest.",
+    "COMMUNITY SAFETY: In the 'Hope Notes' section, visually distinguish 'Moderator' or 'Safe' badges. Use soft colors for user posts, avoiding harsh borders.",
+    "ACCESSIBILITY: Ensure all text meets APCA contrast standards, especially in the 'Vibrant' theme. Use 'data-testid' on all interactive elements."
+  ],
+  "universal_guidelines": [
+    "Do not use generic centered layouts.",
+    "Create depth through layered design elements.",
+    "Use glass-morphism effects with backdrop filters.",
+    "Every interaction needs micro-animations.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Never use AI assistant Emoji characters."
+  ]
+}

@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+}
+
+/* Theme: Calm (Default) */
+html.calm,
+html:root {
+  --background: 150 20 96%;
+  --foreground: 210 24 23%;
+  --card: 0 0 100%;
+  --card-foreground: 210 24 23%;
+  --popover: 0 0 100%;
+  --popover-foreground: 210 24 23%;
+  --primary: 146 26 39%;
+  --primary-foreground: 0 0 100%;
+  --secondary: 210 20 91%;
+  --secondary-foreground: 210 29 11%;
+  --accent: 137 66 87%;
+  --accent-foreground: 151 45 22%;
+  --destructive: 0 84 60%;
+  --destructive-foreground: 0 0 100%;
+  --border: 210 20 91%;
+  --input: 210 20 91%;
+  --ring: 146 26 39%;
+  --radius: 0.5rem;
+  --muted: 210 20 96%;
+  --muted-foreground: 215 16 47%;
+}
+
+/* Theme: Dark */
+html.dark {
+  --background: 222 47 11%;
+  --foreground: 210 20 98%;
+  --card: 215 25 17%;
+  --card-foreground: 210 20 98%;
+  --popover: 215 25 17%;
+  --popover-foreground: 210 20 98%;
+  --primary: 235 83 74%;
+  --primary-foreground: 0 0 100%;
+  --secondary: 217 25 27%;
+  --secondary-foreground: 210 20 98%;
+  --accent: 215 25 17%;
+  --accent-foreground: 235 83 74%;
+  --destructive: 0 84 60%;
+  --destructive-foreground: 0 0 100%;
+  --border: 217 25 27%;
+  --input: 217 25 27%;
+  --ring: 235 83 74%;
+  --radius: 0.5rem;
+  --muted: 215 25 17%;
+  --muted-foreground: 215 24 65%;
+}
+
+/* Theme: Vibrant */
+html.vibrant {
+  --background: 33 100 97%;
+  --foreground: 13 81 14%;
+  --card: 0 0 100%;
+  --card-foreground: 13 81 14%;
+  --popover: 0 0 100%;
+  --popover-foreground: 13 81 14%;
+  --primary: 25 95 53%;
+  --primary-foreground: 0 0 100%;
+  --secondary: 33 100 92%;
+  --secondary-foreground: 15 78 34%;
+  --accent: 30 96 72%;
+  --accent-foreground: 17 75 28%;
+  --destructive: 0 84 60%;
+  --destructive-foreground: 0 0 100%;
+  --border: 30 100 83%;
+  --input: 30 100 83%;
+  --ring: 25 95 53%;
+  --radius: 0.5rem;
+  --muted: 33 100 92%;
+  --muted-foreground: 15 78 34%;
+}
+
+@layer utilities {
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+  
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+  
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+/* Smooth Animations */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+button, a {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}

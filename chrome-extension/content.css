@@ -1,0 +1,313 @@
+/* MindEase Content Script Styles */
+
+.mindease-intervention {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mindease-modal {
+  background: white;
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+  position: relative;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.mindease-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.mindease-icon {
+  font-size: 32px;
+}
+
+.mindease-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #2d3748;
+}
+
+.mindease-crisis-header {
+  border-bottom: 3px solid #10b981;
+  padding-bottom: 16px;
+}
+
+.mindease-message {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #4a5568;
+  margin-bottom: 24px;
+}
+
+.mindease-suggestions h3,
+.mindease-resources h3 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  color: #2d3748;
+}
+
+.mindease-suggestions ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mindease-suggestions li {
+  padding: 12px;
+  background: #f7fafc;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  color: #2d3748;
+  border-left: 3px solid #4a7c59;
+}
+
+.mindease-resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mindease-resource {
+  padding: 16px;
+  background: #ecfdf5;
+  border-radius: 12px;
+  border: 2px solid #10b981;
+}
+
+.mindease-resource strong {
+  display: block;
+  font-size: 16px;
+  color: #065f46;
+  margin-bottom: 8px;
+}
+
+.mindease-contact {
+  display: block;
+  font-size: 20px;
+  font-weight: bold;
+  color: #059669;
+  margin: 8px 0;
+}
+
+.mindease-resource a {
+  color: #0891b2;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.mindease-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.mindease-btn {
+  padding: 14px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.mindease-btn-primary {
+  background: #4a7c59;
+  color: white;
+}
+
+.mindease-btn-primary:hover {
+  background: #3a6b49;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
+}
+
+.mindease-btn-secondary {
+  background: #e2e8f0;
+  color: #2d3748;
+}
+
+.mindease-btn-secondary:hover {
+  background: #cbd5e0;
+}
+
+.mindease-btn-text {
+  background: transparent;
+  color: #718096;
+}
+
+.mindease-btn-text:hover {
+  color: #2d3748;
+  background: #f7fafc;
+}
+
+.mindease-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #2d3748;
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  z-index: 999998;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.mindease-toast-icon {
+  font-size: 24px;
+}
+
+/* Memory Game Styles */
+.mindease-game-modal {
+  max-width: 600px;
+}
+
+.mindease-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #f7fafc;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #718096;
+  transition: all 0.2s;
+}
+
+.mindease-close-btn:hover {
+  background: #e2e8f0;
+  color: #2d3748;
+}
+
+.mindease-game-instruction {
+  text-align: center;
+  color: #718096;
+  margin-bottom: 20px;
+}
+
+.mindease-game-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.mindease-card {
+  aspect-ratio: 1;
+  cursor: pointer;
+  perspective: 1000px;
+}
+
+.mindease-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+
+.mindease-card.flipped .mindease-card-inner,
+.mindease-card.matched .mindease-card-inner {
+  transform: rotateY(180deg);
+}
+
+.mindease-card-front,
+.mindease-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.mindease-card-front {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.mindease-card-back {
+  background: white;
+  border: 3px solid #e2e8f0;
+  transform: rotateY(180deg);
+}
+
+.mindease-card.matched .mindease-card-back {
+  background: #c6f6d5;
+  border-color: #4a7c59;
+}
+
+.mindease-game-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: 16px;
+  background: #f7fafc;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #718096;
+}
+
+.mindease-game-stats strong {
+  color: #2d3748;
+  font-size: 18px;
+}
