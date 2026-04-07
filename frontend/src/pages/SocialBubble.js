@@ -20,6 +20,8 @@ const SocialBubble = () => {
   const [newPostCaption, setNewPostCaption] = useState('');
   const [newPostImage, setNewPostImage] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [incomingInvites, setIncomingInvites] = useState([]);
   const [replyText, setReplyText] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [currentChallenge, setCurrentChallenge] = useState(null);
@@ -31,6 +33,7 @@ const SocialBubble = () => {
     fetchBubbles();
     fetchCurrentChallenge();
     fetchMyCompletions();
+    fetchInvites();
   }, []);
 
   useEffect(() => {
@@ -76,6 +79,26 @@ const SocialBubble = () => {
     } catch (error) {
       console.error('Failed to fetch completions:', error);
     }
+  };
+
+  const fetchInvites = async () => {
+    try {
+      const response = await axios.get(`${API}/bubbles/invites`);
+      setIncomingInvites(response.data);
+    } catch (error) {
+      console.error('Failed to fetch invites:', error);
+    }
+  };
+
+  const handleLocalImageUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setNewPostImage(reader.result.toString());
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleCreateBubble = async (e) => {
@@ -124,12 +147,26 @@ const SocialBubble = () => {
     try {
       await axios.post(`${API}/bubbles/invite`, {
         bubble_id: selectedBubble.id,
-        invitee_email: inviteEmail
+        invitee_email: inviteEmail,
+        message: inviteMessage.trim() || undefined
       });
       toast.success(`Invited ${inviteEmail} to your bubble!`);
       setInviteEmail('');
+      setInviteMessage('');
+      fetchInvites();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to send invite');
+    }
+  };
+
+  const handleInviteResponse = async (inviteId, accept) => {
+    try {
+      await axios.post(`${API}/bubbles/invites/${inviteId}/respond`, { accept });
+      toast.success(accept ? 'Invite accepted' : 'Invite rejected');
+      fetchInvites();
+      fetchBubbles();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to respond to invite');
     }
   };
 
@@ -293,6 +330,13 @@ const SocialBubble = () => {
                               onChange={(e) => setInviteEmail(e.target.value)}
                               className="rounded-xl"
                             />
+                            <Textarea
+                              placeholder="Add a personal message (optional)"
+                              value={inviteMessage}
+                              onChange={(e) => setInviteMessage(e.target.value)}
+                              className="rounded-xl resize-none"
+                              rows={3}
+                            />
                             <Button onClick={handleInvite} className="w-full rounded-full">
                               Send Invite
                             </Button>
@@ -322,10 +366,24 @@ const SocialBubble = () => {
                             <Input
                               data-testid="post-image-input"
                               placeholder="Image URL (optional)"
-                              value={newPostImage}
+                              value={newPostImage && !newPostImage.startsWith('data:') ? newPostImage : ''}
                               onChange={(e) => setNewPostImage(e.target.value)}
                               className="rounded-xl"
                             />
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-foreground">Upload an image from your device</label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleLocalImageUpload}
+                                className="w-full text-sm"
+                              />
+                              {newPostImage && newPostImage.startsWith('data:') && (
+                                <div className="rounded-xl overflow-hidden border border-border mt-2">
+                                  <img src={newPostImage} alt="Preview" className="w-full h-48 object-cover" />
+                                </div>
+                              )}
+                            </div>
                             <Button type="submit" className="w-full rounded-full" data-testid="submit-post-btn">
                               Share
                             </Button>
@@ -336,6 +394,36 @@ const SocialBubble = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {incomingInvites.length > 0 && (
+                <Card className="rounded-2xl border border-amber-200 bg-amber-50">
+                  <CardHeader>
+                    <CardTitle>Pending Invites</CardTitle>
+                    <CardDescription>Accept or reject invitations to join new bubbles.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {incomingInvites.map((invite) => (
+                      <div key={invite.id} className="p-4 rounded-2xl bg-white/90 border border-amber-100">
+                        <div className="flex justify-between items-start gap-4">
+                          <div>
+                            <p className="font-semibold text-foreground">Invite from {invite.inviter_name}</p>
+                            <p className="text-sm text-foreground/70">Join bubble: {invite.bubble_name}</p>
+                            {invite.message && <p className="mt-2 text-sm text-foreground/80">"{invite.message}"</p>}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => handleInviteResponse(invite.id, true)} className="rounded-full">
+                              Accept
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleInviteResponse(invite.id, false)} className="rounded-full">
+                              Reject
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="space-y-4">
                 {bubblePosts.length === 0 ? (

@@ -15,6 +15,8 @@ const SENSITIVE_KEYWORDS = [
 let greyscaleEnabled = false;
 let lastScrollTime = Date.now();
 let pageAnalyzed = false;
+let crisisInterventionShown = false;
+let toxicInterventionShown = false;
 
 // Initialize
 function init() {
@@ -70,13 +72,15 @@ chrome.runtime.sendMessage({
 
   
   // Check for sensitive keywords (crisis detection)
-  for (const keyword of SENSITIVE_KEYWORDS) {
-    if (textContent.toLowerCase().includes(keyword.toLowerCase())) {
-      chrome.runtime.sendMessage({
-        type: 'SENSITIVE_TEXT_DETECTED',
-        data: { keyword }
-      });
-      break; // Only trigger once per page
+  if (!crisisInterventionShown) {
+    for (const keyword of SENSITIVE_KEYWORDS) {
+      if (textContent.toLowerCase().includes(keyword.toLowerCase())) {
+        chrome.runtime.sendMessage({
+          type: 'SENSITIVE_TEXT_DETECTED',
+          data: { keyword }
+        });
+        break; // Only trigger once per page
+      }
     }
   }
   
@@ -143,7 +147,7 @@ function observeContentChanges() {
 }
 
 function checkTextForSensitiveContent(text) {
-  if (!text) return;
+  if (!text || crisisInterventionShown) return;
   
   for (const keyword of SENSITIVE_KEYWORDS) {
     if (text.toLowerCase().includes(keyword.toLowerCase())) {
@@ -162,6 +166,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     showDoomscrollOverlay(message.data);
   } else if (message.type === 'SHOW_CRISIS_INTERVENTION') {
     showCrisisOverlay(message.data);
+  } else if (message.type === 'SHOW_TOXIC_INTERVENTION') {
+    showToxicOverlay(message.data);
   } else if (message.type === 'ENABLE_GREYSCALE') {
     enableGreyscale();
   } else if (message.type === 'DISABLE_GREYSCALE') {
@@ -219,9 +225,55 @@ function showDoomscrollOverlay(data) {
   });
 }
 
-function showCrisisOverlay(data) {
+function showToxicOverlay(data) {
+  if (toxicInterventionShown) return;
+  toxicInterventionShown = true;
+
   const existing = document.getElementById('mindease-overlay');
   if (existing) existing.remove();
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'mindease-overlay';
+  overlay.className = 'mindease-intervention';
+  overlay.innerHTML = `
+    <div class="mindease-modal">
+      <div class="mindease-header">
+        <span class="mindease-icon">⚠️</span>
+        <h2>Potentially Harmful Content</h2>
+      </div>
+      <p class="mindease-message">${data.message}</p>
+      <div class="mindease-suggestions">
+        <h3>Try this instead:</h3>
+        <ul>
+          ${data.suggestions.map(s => `<li>${s}</li>`).join('')}
+        </ul>
+      </div>
+      <div class="mindease-actions">
+        <button class="mindease-btn mindease-btn-primary" id="mindease-toxic-dashboard">View Dashboard</button>
+        <button class="mindease-btn mindease-btn-text" id="mindease-toxic-close">Continue Browsing</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  document.getElementById('mindease-toxic-dashboard').addEventListener('click', () => {
+    window.open('http://localhost:3000/dashboard', '_blank');
+    overlay.remove();
+  });
+  
+  document.getElementById('mindease-toxic-close').addEventListener('click', () => {
+    overlay.remove();
+  });
+}
+
+function showCrisisOverlay(data) {
+  if (crisisInterventionShown) return;
+  
+  const existing = document.getElementById('mindease-overlay');
+  if (existing) existing.remove();
+  
+  crisisInterventionShown = true;
   
   const overlay = document.createElement('div');
   overlay.id = 'mindease-overlay';

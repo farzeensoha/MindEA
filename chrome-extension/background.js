@@ -10,7 +10,7 @@ const CONFIG = {
     'kill myself',
     'sleeping pills',
     'end it all',
-    'want to die'
+    'want to die', "numb", "die", "kill"
   ]
 };
 
@@ -24,6 +24,7 @@ let activeTabData = {
 };
 // Store latest semantic data per tab
 let semanticPageData = {};
+let lastDoomscrollIntervention = 0;
 
 let dailyStats = {
   totalScreenTime: 0,
@@ -33,17 +34,25 @@ let dailyStats = {
   date: new Date().toDateString()
 };
 
-// Initialize extension
-chrome.runtime.onInstalled.addListener(async () => {
-  console.log('MindEase extension installed');
-  
-  // Load saved stats
+async function loadSavedState() {
   const stored = await chrome.storage.local.get(['dailyStats', 'settings']);
+  const today = new Date().toDateString();
+
   if (stored.dailyStats) {
-    dailyStats = stored.dailyStats;
+    if (stored.dailyStats.date !== today) {
+      dailyStats = {
+        totalScreenTime: 0,
+        toxicContentDetected: 0,
+        interventionsShown: 0,
+        sitesVisited: [],
+        date: today
+      };
+      await chrome.storage.local.set({ dailyStats });
+    } else {
+      dailyStats = stored.dailyStats;
+    }
   }
-  
-  // Set default settings
+
   if (!stored.settings) {
     await chrome.storage.local.set({
       settings: {
@@ -56,11 +65,23 @@ chrome.runtime.onInstalled.addListener(async () => {
       }
     });
   }
+}
+
+loadSavedState();
+
+// Initialize extension
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log('MindEase extension installed');
+  await loadSavedState();
   
   // Create alarms
   chrome.alarms.create('syncData', { periodInMinutes: 5 });
   chrome.alarms.create('checkScreenTime', { periodInMinutes: 1 });
   chrome.alarms.create('resetDaily', { when: getNextMidnight() });
+});
+
+chrome.runtime.onStartup.addListener(async () => {
+  await loadSavedState();
 });
 
 function getNextMidnight() {
@@ -159,6 +180,20 @@ function handleToxicContent(data, tab) {
   dailyStats.toxicContentDetected++;
   chrome.storage.local.set({ dailyStats });
   
+  chrome.tabs.sendMessage(tab.id, {
+    type: 'SHOW_TOXIC_INTERVENTION',
+    data: {
+      keyword: data.type === 'text' ? data.patterns : data.type,
+      message: 'Potentially harmful or toxic content was detected on this page. You might want to take a short break.',
+      suggestions: [
+        'Pause and breathe',
+        'Visit your dashboard for support',
+        'Read a calming article',
+        'Take a short walk'
+      ]
+    }
+  });
+  
   // Show notification
   chrome.notifications.create({
     type: 'basic',
@@ -196,6 +231,11 @@ function handleSensitiveText(data, tab) {
 }
 
 function showDoomscrollIntervention(tabId) {
+  const now = Date.now();
+  const DOOMSCROLL_COOLDOWN_MS = 2 * 60 * 1000;
+  if (now - lastDoomscrollIntervention < DOOMSCROLL_COOLDOWN_MS) return;
+
+  lastDoomscrollIntervention = now;
   dailyStats.interventionsShown++;
   chrome.storage.local.set({ dailyStats });
   

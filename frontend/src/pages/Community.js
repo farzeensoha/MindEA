@@ -14,6 +14,8 @@ const Community = () => {
   const [newPost, setNewPost] = useState('');
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null);
 
   useEffect(() => {
     fetchPosts();
@@ -49,14 +51,6 @@ const Community = () => {
     }
   };
 
-  const handleLike = async (postId) => {
-    try {
-      await axios.post(`${API}/community/posts/${postId}/like`);
-      fetchPosts();
-    } catch (error) {
-      console.error('Failed to like post:', error);
-    }
-  };
 
   const handleDelete = async (postId) => {
     if (!confirm('Are you sure you want to delete this post?')) return;
@@ -67,6 +61,22 @@ const Community = () => {
       fetchPosts();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to delete post');
+    }
+  };
+
+  const handleReply = async (postId) => {
+    if (!replyText.trim()) return;
+
+    try {
+      await axios.post(`${API}/community/posts/${postId}/reply`, {
+        text: replyText
+      });
+      toast.success('Reply added successfully!');
+      setReplyText('');
+      setReplyingTo(null);
+      fetchPosts();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to send reply');
     }
   };
 
@@ -147,14 +157,13 @@ const Community = () => {
                 </span>
                 <div className="flex gap-2">
                   <Button
-                    data-testid={`like-post-btn-${index}`}
+                    data-testid={`reply-post-btn-${index}`}
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleLike(post.id)}
+                    onClick={() => setReplyingTo(post.id)}
                     className="rounded-full"
                   >
-                    <Heart className="h-4 w-4 mr-1" />
-                    {post.likes}
+                    Reply
                   </Button>
                   <Button
                     data-testid={`delete-post-btn-${index}`}
@@ -167,6 +176,45 @@ const Community = () => {
                   </Button>
                 </div>
               </div>
+
+              {post.replies && post.replies.length > 0 && (
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <p className="text-sm font-medium text-foreground/70">
+                    Supportive replies ({post.replies.length})
+                  </p>
+                  {post.replies.map((reply) => (
+                    <div key={reply.id} className="p-3 rounded-xl bg-accent/5">
+                      <p className="text-sm font-semibold text-foreground">{reply.author_name}</p>
+                      <p className="text-sm text-foreground/80 mt-1">{reply.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {replyingTo === post.id && (
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <Textarea
+                    placeholder="Write a supportive reply..."
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    className="rounded-xl resize-none"
+                    rows={3}
+                  />
+                  <div className="flex gap-2">
+                    <Button onClick={() => handleReply(post.id)} className="rounded-full" size="sm">
+                      Send Reply
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="rounded-full"
+                      size="sm"
+                      onClick={() => { setReplyingTo(null); setReplyText(''); }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

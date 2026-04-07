@@ -90,13 +90,22 @@ class ModerationResult(BaseModel):
     reason: str
     suggestion: Optional[str] = None
 
+class CommunityReply(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    author_id: str
+    author_name: str
+    text: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class CommunityPost(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
     content: str
     is_anonymous: bool = True
-    likes: int = 0
+    replies: List[CommunityReply] = Field(default_factory=list)
+    #likes: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_flagged: bool = False
     moderation_label: Optional[str] = None
@@ -104,6 +113,9 @@ class CommunityPost(BaseModel):
 class CommunityPostCreate(BaseModel):
     content: str
     is_anonymous: bool = True
+
+class CommunityReplyCreate(BaseModel):
+    text: str
 
 # ============= Social Bubble Models =============
 
@@ -113,7 +125,7 @@ class Bubble(BaseModel):
     owner_id: str
     name: str
     description: str
-    members: List[str] = []  # user IDs
+    members: List[str] = Field(default_factory=list)  # user IDs
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class BubbleCreate(BaseModel):
@@ -123,6 +135,18 @@ class BubbleCreate(BaseModel):
 class BubbleInvite(BaseModel):
     bubble_id: str
     invitee_email: str
+    message: Optional[str] = None
+
+class BubbleInviteRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    bubble_id: str
+    from_user_id: str
+    invitee_id: str
+    invitee_email: EmailStr
+    message: Optional[str] = None
+    status: str = "pending"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class BubblePost(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -133,7 +157,7 @@ class BubblePost(BaseModel):
     caption: str
     image_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    replies: List[dict] = []
+    replies: List[dict] = Field(default_factory=list)
 
 class BubblePostCreate(BaseModel):
     bubble_id: str
@@ -539,15 +563,31 @@ async def create_community_post(post_data: CommunityPostCreate, current_user: Us
     await db.community_posts.insert_one(post_dict)
     return post
 
-@api_router.post("/community/posts/{post_id}/like")
-async def like_post(post_id: str, current_user: User = Depends(get_current_user)):
-    result = await db.community_posts.update_one(
-        {"id": post_id},
-        {"$inc": {"likes": 1}}
-    )
-    if result.modified_count == 0:
+@api_router.post("/community/posts/{post_id}/reply")
+async def reply_to_community_post(post_id: str, reply: CommunityReplyCreate, current_user: User = Depends(get_current_user)):
+    post = await db.community_posts.find_one({"id": post_id})
+    if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    return {"message": "Post liked"}
+
+    moderation = await moderate_content_with_gemini(reply.text)
+    if moderation.label in ["TOXIC", "HATE"] and moderation.confidence > 0.7:
+        raise HTTPException(status_code=400, detail=f"Content filtered: {moderation.reason}")
+
+    reply_obj = {
+        "id": str(uuid.uuid4()),
+        "author_id": current_user.id,
+        "author_name": "Anonymous",
+        "text": reply.text,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    await db.community_posts.update_one(
+        {"id": post_id},
+        {"$push": {"replies": reply_obj}}
+    )
+
+    return {"message": "Reply added"}
+
 
 @api_router.delete("/community/posts/{post_id}")
 async def delete_community_post(post_id: str, current_user: User = Depends(get_current_user)):
@@ -601,8 +641,8 @@ async def invite_to_bubble(invite: BubbleInvite, current_user: User = Depends(ge
     if not bubble:
         raise HTTPException(status_code=404, detail="Bubble not found")
     
-    if bubble['owner_id'] != current_user.id:
-        raise HTTPException(status_code=403, detail="Only bubble owner can invite")
+    if current_user.id not in bubble['members']:
+        raise HTTPException(status_code=403, detail="Only bubble members can invite")
     
     invitee = await db.users.find_one({"email": invite.invitee_email})
     if not invitee:
@@ -610,23 +650,82 @@ async def invite_to_bubble(invite: BubbleInvite, current_user: User = Depends(ge
     
     if invitee['id'] in bubble['members']:
         raise HTTPException(status_code=400, detail="User already in bubble")
+
+    existing_invite = await db.bubble_invites.find_one({
+        "bubble_id": invite.bubble_id,
+        "invitee_id": invitee['id'],
+        "status": "pending"
+    })
+    if existing_invite:
+        raise HTTPException(status_code=400, detail="An invite is already pending for this user")
     
-    await db.bubbles.update_one(
-        {"id": invite.bubble_id},
-        {"$push": {"members": invitee['id']}}
+    invite_record = BubbleInviteRecord(
+        bubble_id=invite.bubble_id,
+        from_user_id=current_user.id,
+        invitee_id=invitee['id'],
+        invitee_email=invite.invitee_email,
+        message=invite.message
     )
+    invite_dict = invite_record.model_dump()
+    invite_dict['created_at'] = invite_dict['created_at'].isoformat()
+
+    await db.bubble_invites.insert_one(invite_dict)
     
-    return {"message": f"Invited {invite.invitee_email} to bubble"}
+    return {"message": f"Invite sent to {invite.invitee_email}"}
+
+@api_router.get("/bubbles/invites")
+async def get_incoming_invites(current_user: User = Depends(get_current_user)):
+    """Get incoming bubble invites"""
+    invites = await db.bubble_invites.find(
+        {"invitee_id": current_user.id, "status": "pending"},
+        {"_id": 0}
+    ).to_list(100)
+
+    for invite in invites:
+        if isinstance(invite.get('created_at'), str):
+            invite['created_at'] = datetime.fromisoformat(invite['created_at'])
+        bubble = await db.bubbles.find_one({"id": invite['bubble_id']}, {"name": 1, "_id": 0})
+        invite['bubble_name'] = bubble['name'] if bubble else 'Unknown bubble'
+        inviter = await db.users.find_one({"id": invite['from_user_id']}, {"name": 1, "_id": 0})
+        invite['inviter_name'] = inviter['name'] if inviter else 'Someone'
+    return invites
+
+@api_router.post("/bubbles/invites/{invite_id}/respond")
+async def respond_to_invite(invite_id: str, action: dict, current_user: User = Depends(get_current_user)):
+    """Accept or reject a bubble invite"""
+    invite = await db.bubble_invites.find_one({"id": invite_id})
+    if not invite or invite['invitee_id'] != current_user.id:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite['status'] != "pending":
+        raise HTTPException(status_code=400, detail="Invite already responded to")
+
+    if action.get('accept'):
+        bubble = await db.bubbles.find_one({"id": invite['bubble_id']})
+        if not bubble:
+            raise HTTPException(status_code=404, detail="Bubble not found")
+        if current_user.id not in bubble['members']:
+            await db.bubbles.update_one(
+                {"id": invite['bubble_id']},
+                {"$push": {"members": current_user.id}}
+            )
+        await db.bubble_invites.update_one(
+            {"id": invite_id},
+            {"$set": {"status": "accepted"}}
+        )
+        return {"message": "Invite accepted"}
+
+    await db.bubble_invites.update_one(
+        {"id": invite_id},
+        {"$set": {"status": "rejected"}}
+    )
+    return {"message": "Invite rejected"}
 
 @api_router.delete("/bubbles/{bubble_id}/leave")
 async def leave_bubble(bubble_id: str, current_user: User = Depends(get_current_user)):
-    """Leave a bubble"""
+    """Leave the bubble or remove the current user from it"""
     bubble = await db.bubbles.find_one({"id": bubble_id})
     if not bubble:
         raise HTTPException(status_code=404, detail="Bubble not found")
-    
-    if bubble['owner_id'] == current_user.id:
-        raise HTTPException(status_code=400, detail="Owner cannot leave their own bubble. Delete it instead.")
     
     await db.bubbles.update_one(
         {"id": bubble_id},
@@ -634,23 +733,6 @@ async def leave_bubble(bubble_id: str, current_user: User = Depends(get_current_
     )
     
     return {"message": "Left bubble successfully"}
-
-@api_router.delete("/bubbles/{bubble_id}/remove/{user_id}")
-async def remove_from_bubble(bubble_id: str, user_id: str, current_user: User = Depends(get_current_user)):
-    """Remove a member from bubble (owner only)"""
-    bubble = await db.bubbles.find_one({"id": bubble_id})
-    if not bubble:
-        raise HTTPException(status_code=404, detail="Bubble not found")
-    
-    if bubble['owner_id'] != current_user.id:
-        raise HTTPException(status_code=403, detail="Only owner can remove members")
-    
-    await db.bubbles.update_one(
-        {"id": bubble_id},
-        {"$pull": {"members": user_id}}
-    )
-    
-    return {"message": "Member removed successfully"}
 
 @api_router.get("/bubbles/{bubble_id}/posts", response_model=List[BubblePost])
 async def get_bubble_posts(bubble_id: str, current_user: User = Depends(get_current_user)):
