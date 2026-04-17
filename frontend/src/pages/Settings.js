@@ -80,6 +80,36 @@ const Settings = () => {
             <Label className="text-sm text-foreground/70">Email</Label>
             <p className="text-lg font-medium">{user?.email}</p>
           </div>
+          <div>
+            <Label className="text-sm text-foreground/70">Guardian / Parent Email</Label>
+            <input
+              type="email"
+              className="mt-2 w-full rounded-xl border border-input bg-background px-3 py-2 text-base text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              value={user?.guardian_email || ''}
+              onChange={(e) => setUser({ ...user, guardian_email: e.target.value })}
+              placeholder="guardian@example.com"
+            />
+            <Button
+              className="mt-3 rounded-full"
+              onClick={async () => {
+                if (!user?.guardian_email) {
+                  toast.error('Please enter a valid guardian email');
+                  return;
+                }
+                try {
+                  await axios.patch(`${API}/auth/guardian`, {
+                    guardian_email: user.guardian_email
+                  });
+                  localStorage.setItem('mindease-user', JSON.stringify(user));
+                  toast.success('Guardian email saved');
+                } catch (error) {
+                  toast.error('Failed to save guardian email');
+                }
+              }}
+            >
+              Save Guardian Email
+            </Button>
+          </div>
           <Button
             data-testid="logout-btn"
             variant="destructive"

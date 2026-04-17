@@ -11,6 +11,11 @@ const DEFAULT_SETTINGS = {
   apiToken: null
 };
 
+async function updateUninstallUrl(token) {
+  if (!token) return;
+  chrome.runtime.setUninstallURL(`${API_URL}/extension/uninstall?token=${encodeURIComponent(token)}`);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   setupEventListeners();
@@ -58,6 +63,11 @@ function setupEventListeners() {
         await chrome.storage.local.set({
           settings: { ...settings, apiToken: token }
         });
+        // Update uninstall URL with new token
+        const { settings: updatedSettings } = await chrome.storage.local.get('settings');
+        if (updatedSettings.apiToken) {
+          await updateUninstallUrl(updatedSettings.apiToken);
+        }
         showAlert('Successfully connected to MindEase!', 'success');
       } else {
         showAlert('Invalid token. Please check and try again.', 'error');
@@ -79,6 +89,10 @@ function setupEventListeners() {
     };
     
     await chrome.storage.local.set({ settings });
+    // Update uninstall URL if token is set
+    if (settings.apiToken) {
+      await updateUninstallUrl(settings.apiToken);
+    }
     showAlert('Settings saved successfully!', 'success');
   });
   

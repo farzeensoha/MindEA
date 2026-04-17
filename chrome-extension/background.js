@@ -34,6 +34,11 @@ let dailyStats = {
   date: new Date().toDateString()
 };
 
+async function updateUninstallUrl(token) {
+  if (!token) return;
+  chrome.runtime.setUninstallURL(`${CONFIG.API_URL}/extension/uninstall?token=${encodeURIComponent(token)}`);
+}
+
 async function loadSavedState() {
   const stored = await chrome.storage.local.get(['dailyStats', 'settings']);
   const today = new Date().toDateString();
@@ -64,6 +69,8 @@ async function loadSavedState() {
         apiToken: null
       }
     });
+  } else if (stored.settings.apiToken) {
+    await updateUninstallUrl(stored.settings.apiToken);
   }
 }
 
@@ -228,6 +235,13 @@ function handleSensitiveText(data, tab) {
   
   dailyStats.interventionsShown++;
   chrome.storage.local.set({ dailyStats });
+  
+  logToBackend('crisis_content', {
+    url: tab.url,
+    domain: new URL(tab.url).hostname,
+    keyword: data.keyword,
+    timestamp: new Date().toISOString()
+  });
 }
 
 function showDoomscrollIntervention(tabId) {
