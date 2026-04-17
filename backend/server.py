@@ -5,6 +5,9 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import asyncio
+import smtplib
+from email.message import EmailMessage
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
@@ -37,6 +40,13 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
+# SMTP email configuration
+SENDER_EMAIL = 'sohafarzeen@gmail.com'
+SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+SMTP_USERNAME = os.environ.get('SMTP_USERNAME', SENDER_EMAIL)
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -50,16 +60,21 @@ class User(BaseModel):
     name: str
     theme: str = "calm"  # calm, dark, vibrant
     growth_tokens: int = 0
+    guardian_email: Optional[EmailStr] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     name: str
+    guardian_email: Optional[EmailStr] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class GuardianUpdate(BaseModel):
+    guardian_email: EmailStr
 
 class Token(BaseModel):
     access_token: str
@@ -260,9 +275,191 @@ def normalize_text(text: str) -> str:
     
     return text
 
+
+def create_email_message(to_email: str, subject: str, plain_text: str, html_text: str) -> EmailMessage:
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = to_email
+    msg.set_content(plain_text)
+    msg.add_alternative(html_text, subtype='html')
+    return msg
+
+
+def send_email(to_email: str, subject: str, plain_text: str, html_text: str):
+    if not SMTP_PASSWORD:
+        logging.warning('SMTP_PASSWORD not configured; skipping email send')
+        return
+
+    message = create_email_message(to_email, subject, plain_text, html_text)
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as smtp:
+            smtp.starttls()
+            smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.send_message(message)
+            logging.info(f'Email sent to {to_email} with subject: {subject}')
+    except Exception as e:
+        logging.error(f'Failed to send email to {to_email}: {e}')
+
+
+async def send_email_async(to_email: str, subject: str, plain_text: str, html_text: str):
+    await asyncio.to_thread(send_email, to_email, subject, plain_text, html_text)
+
+
+def build_guardian_notification_email(user_name: str, event_description: str, details: dict) -> tuple[str, str, str]:
+    subject = f'MindEase Alert for {user_name}'
+    plain_text = f"Your child {user_name} had a digital wellness event: {event_description}.\n\nDetails:\n"
+    html_text = f"<h2>MindEase Alert for {user_name}</h2><p>{event_description}</p><ul>"
+    for key, value in details.items():
+        plain_text += f"- {key}: {value}\n"
+        html_text += f"<li><strong>{key}:</strong> {value}</li>"
+    html_text += "</ul><p>Visit the MindEase dashboard for more details.</p>"
+    return subject, plain_text, html_text
+
+
+def build_daily_report_email(user, report_data: dict) -> tuple[str, str, str]:
+    subject = f"MindEase Daily Report for {user.name}"
+    plain_text = f"Daily report for {user.name}:\n\n"
+    html_text = f"<h2>MindEase Daily Report for {user.name}</h2>"
+    html_text += f"<p><strong>Date:</strong> {report_data.get('report_date')}</p>"
+    html_text += "<h3>Dashboard Summary</h3><ul>"
+    for key, value in report_data.get('dashboard', {}).items():
+        plain_text += f"{key}: {value}\n"
+        html_text += f"<li><strong>{key}:</strong> {value}</li>"
+    html_text += "</ul>"
+
+    html_text += "<h3>Intervention Triggers</h3>"
+    if report_data.get('interventions'):
+        html_text += "<ul>"
+        for item in report_data['interventions']:
+            plain_text += f"- {item['type']} at {item['timestamp']}: {item['domain']} ({item['url']})\n"
+            html_text += f"<li><strong>{item['type']}</strong> at {item['timestamp']} on <a href='{item['url']}'>{item['domain']}</a></li>"
+        html_text += "</ul>"
+    else:
+        html_text += "<p>No crisis or toxic interventions were triggered today.</p>"
+        plain_text += "No crisis or toxic interventions were triggered today.\n"
+
+    html_text += "<h3>Sites Visited</h3>"
+    if report_data.get('sites'):
+        html_text += "<ul>"
+        for site in report_data['sites']:
+            plain_text += f"- {site}\n"
+            html_text += f"<li>{site}</li>"
+        html_text += "</ul>"
+    else:
+        html_text += "<p>No sites recorded today.</p>"
+        plain_text += "No sites recorded today.\n"
+
+    html_text += "<p>Thank you for supporting your child’s digital wellbeing with MindEase.</p>"
+    return subject, plain_text, html_text
+
+async def send_guardian_alert(user, event_type: str, details: dict):
+    if not user.guardian_email:
+        return
+
+    description = 'A crisis intervention was shown.' if event_type == 'crisis_content' else 'A toxic content intervention was shown.'
+    subject, plain_text, html_text = build_guardian_notification_email(user.name, description, details)
+    await send_email_async(user.guardian_email, subject, plain_text, html_text)
+
+async def send_guardian_uninstall_notification(user):
+    if not user.guardian_email:
+        return
+
+    event_description = 'The MindEase Chrome extension was uninstalled from your child’s browser.'
+    details = {
+        'User': user.name,
+        'Email': user.email,
+        'Timestamp': datetime.now(timezone.utc).isoformat()
+    }
+    subject, plain_text, html_text = build_guardian_notification_email(user.name, event_description, details)
+    await send_email_async(user.guardian_email, subject, plain_text, html_text)
+
+async def send_daily_report_for_user(user):
+    if not user.guardian_email:
+        return
+
+    now = datetime.now(timezone.utc)
+    yesterday = now - timedelta(days=1)
+    logs = await db.extension_logs.find(
+        {
+            'user_id': user.id,
+            'event_type': {'$in': ['toxic_content', 'crisis_content']},
+            'logged_at': {'$gte': yesterday.isoformat()}
+        },
+        {'_id': 0}
+    ).sort('logged_at', 1).to_list(100)
+
+    interventions = [
+        {
+            'type': log['event_type'],
+            'timestamp': log['logged_at'],
+            'domain': log['data'].get('domain', 'unknown'),
+            'url': log['data'].get('url', 'unknown')
+        }
+        for log in logs
+    ]
+
+    analytics = await db.extension_data.find_one(
+        {'user_id': user.id},
+        {'_id': 0},
+        sort=[('timestamp', -1)]
+    )
+    dashboard = {
+        'Total screen time (minutes)': 0,
+        'Toxic content alerts': 0,
+        'Interventions shown': 0,
+        'Sites visited': []
+    }
+    sites = []
+    if analytics and analytics.get('stats'):
+        stats = analytics['stats']
+        dashboard['Total screen time (minutes)'] = stats.get('totalScreenTime', 0) // 60000
+        dashboard['Toxic content alerts'] = stats.get('toxicContentDetected', 0)
+        dashboard['Interventions shown'] = stats.get('interventionsShown', 0)
+        sites = stats.get('sitesVisited', [])
+        dashboard['Sites visited'] = len(sites)
+
+    posts_count = await db.community_posts.count_documents({'user_id': user.id})
+    bubble_posts_count = await db.bubble_posts.count_documents({'author_id': user.id})
+    flashcards_count = await db.flashcards.count_documents({'user_id': user.id})
+
+    dashboard['Community posts'] = posts_count
+    dashboard['Bubble posts'] = bubble_posts_count
+    dashboard['Saved flashcards'] = flashcards_count
+    dashboard['Growth tokens'] = user.growth_tokens
+
+    report_data = {
+        'report_date': now.date().isoformat(),
+        'dashboard': dashboard,
+        'interventions': interventions,
+        'sites': sites
+    }
+
+    subject, plain_text, html_text = build_daily_report_email(user, report_data)
+    await send_email_async(user.guardian_email, subject, plain_text, html_text)
+
+async def daily_report_scheduler():
+    while True:
+        now = datetime.now()
+        next_run = now.replace(hour=13, minute=0, second=0, microsecond=0)
+        if next_run <= now:
+            next_run = next_run + timedelta(days=1)
+        wait_seconds = (next_run - now).total_seconds()
+        logging.info(f'Waiting {wait_seconds:.0f} seconds until next daily report at {next_run}')
+        await asyncio.sleep(wait_seconds)
+
+        users = await db.users.find({'guardian_email': {'$exists': True, '$ne': None}}, {'_id': 0}).to_list(1000)
+        for user_doc in users:
+            if isinstance(user_doc.get('created_at'), str):
+                user_doc['created_at'] = datetime.fromisoformat(user_doc['created_at'])
+            user = User(**user_doc)
+            await send_daily_report_for_user(user)
+
+        # Sleep 60 seconds to avoid repeat if the loop wakes up exactly at the same second
+        await asyncio.sleep(60)
+
 async def moderate_content_with_gemini(text: str) -> ModerationResult:
     """Use Gemini API for semantic content moderation"""
-    
     if not GEMINI_API_KEY:
         # Fallback to basic moderation if no API key
         return ModerationResult(
@@ -414,7 +611,7 @@ async def signup(user_data: UserCreate):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = hash_password(user_data.password)
-    user = User(email=user_data.email, name=user_data.name)
+    user = User(email=user_data.email, name=user_data.name, guardian_email=user_data.guardian_email)
     user_dict = user.model_dump()
     user_dict['password'] = hashed_password
     user_dict['created_at'] = user_dict['created_at'].isoformat()
@@ -461,6 +658,14 @@ async def update_theme(theme_data: ThemeUpdate, current_user: User = Depends(get
         {"$set": {"theme": theme_data.theme}}
     )
     return {"message": "Theme updated successfully", "theme": theme_data.theme}
+
+@api_router.patch("/auth/guardian")
+async def update_guardian(guardian_update: GuardianUpdate, current_user: User = Depends(get_current_user)):
+    await db.users.update_one(
+        {"email": current_user.email},
+        {"$set": {"guardian_email": guardian_update.guardian_email}}
+    )
+    return {"message": "Guardian email updated successfully", "guardian_email": guardian_update.guardian_email}
 
 # ============= Wellness Routes =============
 
@@ -1043,10 +1248,46 @@ async def log_extension_event(request: ExtensionLogRequest, current_user: User =
         
         await db.extension_logs.insert_one(event_record)
         
+        if request.eventType in ["toxic_content", "crisis_content"]:
+            await send_guardian_alert(current_user, request.eventType, request.data)
+
         return {"message": "Event logged successfully"}
     except Exception as e:
         logging.error(f"Extension log error: {e}")
         raise HTTPException(status_code=500, detail="Failed to log event")
+
+@api_router.get("/extension/uninstall")
+async def extension_uninstall(token: str):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=401, detail="Invalid uninstall token")
+
+        user_doc = await db.users.find_one({"email": email}, {"_id": 0})
+        if not user_doc:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if isinstance(user_doc.get('created_at'), str):
+            user_doc['created_at'] = datetime.fromisoformat(user_doc['created_at'])
+
+        user = User(**user_doc)
+        await send_guardian_uninstall_notification(user)
+
+        await db.extension_logs.insert_one({
+            "user_id": user.id,
+            "event_type": "extension_uninstall",
+            "data": {"message": "Extension uninstalled"},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "logged_at": datetime.now(timezone.utc).isoformat()
+        })
+
+        return {"message": "Guardian notified of extension uninstall"}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid uninstall token")
+    except Exception as e:
+        logging.error(f"Uninstall handler error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to notify guardian")
 
 # ============= Base Route =============
 
@@ -1056,6 +1297,10 @@ async def root():
 
 # Include router
 app.include_router(api_router)
+
+@app.on_event("startup")
+async def start_report_scheduler():
+    asyncio.create_task(daily_report_scheduler())
 
 app.add_middleware(
     CORSMiddleware,
